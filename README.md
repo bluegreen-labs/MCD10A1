@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.162765.svg)](https://doi.org/10.5281/zenodo.162765)
+
 # MCD10A1: a robust MODIS snow cover and snow phenology product
 
 ## Description
