@@ -8,8 +8,7 @@ The original MODIS products (MOD10A1 & MYD10A1, for the Terra and Aqua platforms
 
 My code fuses the two data streams using a maximum value approach to account for this bias. More importantly, the script also generates a derived snow phenology product where I calculate snow melt in spring and and snow accumulation in autumn.
 
-
-Finally, the script runs a simple regression analysis to mark trends in snow melt dates, answering the question if snow melt occurs later or earlier with each passing year!?
+As an example the script runs a simple regression analysis to mark trends in snow melt dates, answering the question if snow melt occurs later or earlier over time.
 
 ## Using the code
 
