@@ -2,7 +2,7 @@
 
 ## Description
 
-The Google Earth Engine (GEE) code within this project is a combined MODIS Aqua - Terra snow cover product (and derived snow melt / accumulation dates).
+The Google Earth Engine (GEE) code within this project combines MODIS Aqua - Terra snow cover products and derives snow melt - accumulation (snow phenology) dates.
 
 The original MODIS products (MOD10A1 & MYD10A1, for the Terra and Aqua platforms respectively) as processed by the National Snow and Ice Data Center (NSIDC) have the tendency to be biased low.
 
