@@ -1,0 +1,8 @@
+title: MCD10A1
+description: Combined MOD10A1 / MYD10A1 robust snow cover and snow phenology product
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-minimal
+
+gems:
+  - jekyll-mentions
