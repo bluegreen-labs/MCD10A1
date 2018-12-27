@@ -19,7 +19,8 @@
 // Dec. 31th to get to the snow free period, and obviously reverse the captions
 // on the dates melt becomes accumulation and vice versa).
 //
-// Code written by Koen Hufkens, April 2016.
+// Code written by Koen Hufkens, April 2016
+// under a GNU AFFERO GENERAL PUBLIC LICENSE - see repository
 // 
 //----------------------------------------------------------------------------------
 
@@ -27,26 +28,69 @@
 
 // years to process (from start year t0 to end year t1)
 // [2003 is the first year with full coverage]
-var t0 = "2003", t1 = "2015";
+var t0 = "2003", t1 = "2016";
+var t_diff = (t1 - t0) + 1;
 
 // -- functions --
 
 var maxVal = function(feature) {
-  // convert feature to true image
-  // for some reason the join messes this up
+  
+  // load feature and set start time
+  // when mapping
   var img = ee.Image(feature);
-  var b1 = img.select('Fractional_Snow_Cover');
-  var b1m = b1.updateMask(b1.lt(100));
-  var b2 = img.select('Fractional_Snow_Cover_1');
-  var b2m = b2.updateMask(b2.lt(100));
-  var startTime = b1.get('system:time_start');
-  // take maximum value of extracted bands, retain the
-  // start time, but unmask the masked values as not to
-  // mess with the DOY routine.
-  var maxval = b1m.max(b2m).set('system:time_start',startTime).unmask(200);
+  var startTime = img.select('NDSI_Snow_Cover').get('system:time_start');
+  
+  // assign 0 values (which can be confused with NA)
+  // a small negative value for both bands
+  var b1c = img.expression(
+      'b1 == 0 ? -10 : b1', {
+        'b1': img.select('NDSI_Snow_Cover')
+  });
+  
+  var b2c = img.expression(
+      'b1 == 0 ? -10 : b1', {
+        'b1': img.select('NDSI_Snow_Cover_1')
+  });
+  
+  // take the maximum value of the remapped data
+  // while unmasking (assigning 0 to NA) the data
+  var maxval = b1c.unmask(0).max(b2c.unmask(0));
+  
+  // update the mask (set all 0 values to NA)
+  maxval = maxval.updateMask(maxval.neq(0));
+  
+  // substitute in the original 0 values, which
+  // are currently registered as -10
+  maxval = img.expression(
+      'b1 == -10 ? 0 : b1', {
+        'b1': maxval
+  });
+  
+  // associate the start time with the new image
+  // and return the data
+  maxval = maxval.set('system:time_start',startTime);
   return maxval;
 };
 
+// concat two layers from a collection
+// into an image with x bands
+// (can be iterated)
+var cat = function(a, b) {
+  return ee.Image(b).addBands(a);
+};
+
+// rename bands for export to ee.Image() format
+var rename_bands = function (img) {
+  img = ee.Image(img);
+  var names = img.bandNames();
+  var prefix = ee.String(img.get("system:time_start")).cat("_");
+  var new_names = names.map(function(b) {
+    return prefix.cat(b); });
+  return img.select(names, new_names);
+};
+
+// take the difference between snow accumulation
+// and snow melt days (doy values)
 var difference = function(feature) {
   var img = ee.Image(feature);
   var b1 = img.select('snowmelt');
@@ -64,7 +108,7 @@ var returnDoy = function(feature) {
   // their respective DOY
   var replacement = image.expression(
       'SNOW <= 5 ? DOY : 9999', {
-        'SNOW': image.select('Fractional_Snow_Cover'),
+        'SNOW': image.select('NDSI_Snow_Cover'),
         'DOY': doy
   }).toInt();
   
@@ -104,18 +148,16 @@ for (var i = parseInt(t0); i <= parseInt(t1); ++i) {
   var evalYear = i.toString();
   
   // Load MODIS Fractional Snow Cover product (aqua / terra)
-  var terraCollection = ee.ImageCollection('MOD10A1')
-    .select('Fractional_Snow_Cover')
+  var terraCollection = ee.ImageCollection('MODIS/006/MOD10A1')
+    .select('NDSI_Snow_Cover')
     .filterDate(evalYear.concat("-01-01"),evalYear.concat("-12-31"))
     .sort('system:time_start', true);
-    //.filterBounds(NorthSlope);
-  
-  var aquaCollection = ee.ImageCollection('MYD10A1')
-    .select('Fractional_Snow_Cover')
+
+  var aquaCollection = ee.ImageCollection('MODIS/006/MYD10A1')
+    .select('NDSI_Snow_Cover')
     .filterDate(evalYear.concat("-01-01"),evalYear.concat("-12-31"))
     .sort('system:time_start', true);
-    //.filterBounds(NorthSlope);
-  
+
   // create a collection of both MOD/MYD data matched
   // joined per band using an inner join
   var innerJoin = ee.Join.inner();
@@ -127,11 +169,30 @@ for (var i = parseInt(t0); i <= parseInt(t1); ++i) {
   var joinedCollection = innerJoinedCollection.map(concatBands);
   
   // calculate the maximum value across the two bands MOD/MYD
+  // see maxVal function above
   var yearlyCollection = joinedCollection.map(maxVal);
 
+  if (evalYear == 2003){
+    
+    // pick a location for visual code validation
+    var loc = ee.Geometry.Point([-118.84257812499999, 55.29665181611441]);
+
+    // Register a function to draw a chart when a user clicks on the map.
+    var mv = ui.Chart.image.series(yearlyCollection, loc, null, 50)
+      .setOptions({title: 'joined MCD10A1'});
+  
+    var mod = ui.Chart.image.series(terraCollection, loc, null, 50)
+      .setOptions({title: 'MOD10A1'});
+  
+    var myd = ui.Chart.image.series(aquaCollection, loc, null, 50)
+      .setOptions({title: 'MYD10A1'});
+
+    print(mv, mod, myd);
+  }
+  
   // how many bands in the dataset?
   // should be close to 365
-  // print(yearlyCollection.size());
+  //print(yearlyCollection.size());
 
   // Get the starting time reference.
   var start = ee.Date(yearlyCollection.first().get('system:time_start'));
@@ -142,7 +203,7 @@ for (var i = parseInt(t0); i <= parseInt(t1); ++i) {
   // calculate the snow melt and snow fall (accumulation)
   var snowMeltAcc = ee.ImageCollection(doyCollection)
     .reduce(ee.Reducer.minMax()).unmask(366);
-    
+  
   // The latter part is rather ugly, not optimal (but works)
   // if first in loop swap with the original layer
   if (evalYear == t0){
@@ -160,6 +221,7 @@ for (var i = parseInt(t0); i <= parseInt(t1); ++i) {
    var snowAcc = ee.ImageCollection(tmpImg);
    
   }else{
+    
     // add snow melt layers
     var tmpImg = snowMeltAcc.select(['constant_min'],['snowmelt'])
       .set('system:time_start',i); 
@@ -172,13 +234,19 @@ for (var i = parseInt(t0); i <= parseInt(t1); ++i) {
   }
 }
 
-// calculate the snow free season length
-// in number of days (for masking or further analysis)
+// rename bands
+var snowMeltlist = snowMelt.toList(t_diff);
+snowMeltlist = snowMeltlist.map(rename_bands);
+var snowMeltImg = snowMeltlist.slice(1).iterate(cat, snowMeltlist.get(0));
+
+var snowAcclist = snowAcc.toList(t_diff);
+snowAcclist = snowAcclist.map(rename_bands);
+var snowAccImg = snowAcclist.slice(1).iterate(cat, snowAcclist.get(0));
 
 // Apply the join
 var innerJoinedCollection = innerJoin.apply(snowMelt, snowAcc, filterTimeEq);
 
-// combine matching images into one image with (2) bands
+// combine matching images into one image with (2) band
 var joinedCollection = innerJoinedCollection.map(concatBands);
 
 // take the difference of the two bands
@@ -188,7 +256,6 @@ var snowFree = joinedCollection.map(difference);
 // and create a mask from the result
 var snowFreeMedian = ee.ImageCollection(snowFree)
   .median();
-  
 var snowFreeMask = ee.Image(snowFreeMedian)
   .lt(306);
 
@@ -212,8 +279,10 @@ var waterMask = data.eq(1);
 // final mask, excluding water bodies and
 // areas with a too short of a winter season
 var mask = waterMask.multiply(snowFreeMask);
+var filteredFit = ee.Image(linearFit).multiply(mask);
 
 // Plot the snow free trend
 Map.addLayer(linearFit
   .mask(mask),
   {min: 0, max: [-2, 0, 2], bands: ['scale', 'offset', 'scale']}, 'fit');
+
