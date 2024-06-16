@@ -12,6 +12,12 @@ My code fuses these two data streams using a maximum value approach to account f
 
 As an example the script runs a simple regression analysis to mark trends in snow melt dates, answering the question if snow melt occurs later or earlier over time.
 
+## How to cite this package in your article
+
+You can cite this package like as:
+
+> Koen Hufkens. (2018). khufkens/MCD10A1: MCD10A1 (v1.1). Zenodo. https://doi.org/10.5281/zenodo.2528498
+
 ## Use
 You can clone the project, copy and paste the code into your current workspace / project or use the [GEE link](https://code.earthengine.google.com/bd06f9efa757b7fbf9d2ae282d319282).
 
