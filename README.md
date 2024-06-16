@@ -47,6 +47,3 @@ In all cases, high latitude sites have a better agreement between SNOTEL estimat
 
 ![](https://github.com/khufkens/MCD10A1/raw/master/output/snow_acc_validation.png)
 
-## Acknowledgements
-
-Please acknowledge my code by citing the github release through it's DOI, or better make me co-author on any publication which extensively uses this code! Keep in mind that this code is released under a **AGPLv3 license**, which permits commercial use but **requires that the source code (of derivatives) is always open** even if hosted as a web service (de facto the case for GEE applications).
